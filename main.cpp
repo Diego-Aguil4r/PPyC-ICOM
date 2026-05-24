@@ -2,11 +2,11 @@
 #include <vector>
 #include <fstream>
 #include <string>
+#include <omp.h> // OpenMP library
 
 using namespace std;
 
-// Image dimensions for 8K resolution
-const int WIDTH = 7680;  
+const int WIDTH = 7680;
 const int HEIGHT = 4320;
 const int MAX_ITER = 256;
 
@@ -14,17 +14,16 @@ struct Color {
     unsigned char r, g, b;
 };
 
-// Task A: Generate Mandelbrot Set
+// Task A: Generate Mandelbrot Set (Parallelized)
 void generateMandelbrot(vector<Color>& image) {
+    #pragma omp parallel for
     for (int y = 0; y < HEIGHT; ++y) {
         for (int x = 0; x < WIDTH; ++x) {
-            // Map pixel coordinates to the complex plane
             double c_re = (x - WIDTH / 2.0) * 4.0 / WIDTH;
             double c_im = (y - HEIGHT / 2.0) * 4.0 / WIDTH;
             double z_re = 0, z_im = 0;
             int iter = 0;
 
-            // Iterate the Mandelbrot function
             while (z_re * z_re + z_im * z_im <= 4 && iter < MAX_ITER) {
                 double z_re_new = z_re * z_re - z_im * z_im + c_re;
                 z_im = 2 * z_re * z_im + c_im;
@@ -32,7 +31,6 @@ void generateMandelbrot(vector<Color>& image) {
                 iter++;
             }
 
-            // Assign color based on iteration count
             int index = y * WIDTH + x;
             if (iter == MAX_ITER) {
                 image[index] = {0, 0, 0};
@@ -47,9 +45,8 @@ void generateMandelbrot(vector<Color>& image) {
     }
 }
 
-// Task B: Apply 5x5 Gaussian Blur (Heavy Convolution)
+// Task B: Apply 5x5 Gaussian Blur (Parallelized)
 void applyGaussianBlur(const vector<Color>& input, vector<Color>& output) {
-    // Gaussian kernel values
     double kernel[5][5] = {
         { 1/256.0,  4/256.0,  6/256.0,  4/256.0, 1/256.0 },
         { 4/256.0, 16/256.0, 24/256.0, 16/256.0, 4/256.0 },
@@ -58,7 +55,7 @@ void applyGaussianBlur(const vector<Color>& input, vector<Color>& output) {
         { 1/256.0,  4/256.0,  6/256.0,  4/256.0, 1/256.0 }
     };
 
-    // Perform convolution over the image
+    #pragma omp parallel for
     for (int y = 2; y < HEIGHT - 2; ++y) {
         for (int x = 2; x < WIDTH - 2; ++x) {
             double r = 0, g = 0, b = 0;
@@ -81,7 +78,6 @@ void applyGaussianBlur(const vector<Color>& input, vector<Color>& output) {
     }
 }
 
-// Save image to PPM binary format
 void savePPM(const string& filename, const vector<Color>& image) {
     ofstream file(filename, ios::binary);
     file << "P6\n" << WIDTH << " " << HEIGHT << "\n255\n";
@@ -95,15 +91,16 @@ int main() {
     vector<Color> image(WIDTH * HEIGHT);
     vector<Color> blurred_image(WIDTH * HEIGHT);
 
-    cout << "Generating Mandelbrot 8K..." << endl;
+    cout << "Generating Mandelbrot 8K in parallel..." << endl;
+    double start = omp_get_wtime();
     generateMandelbrot(image);
+    cout << "Mandelbrot Time: " << omp_get_wtime() - start << "s" << endl;
 
-    cout << "Applying Gaussian blur..." << endl;
+    cout << "Applying Gaussian blur in parallel..." << endl;
+    start = omp_get_wtime();
     applyGaussianBlur(image, blurred_image);
+    cout << "Blur Time: " << omp_get_wtime() - start << "s" << endl;
 
-    cout << "Saving image..." << endl;
     savePPM("mandelbrot_blur.ppm", blurred_image);
-
-    cout << "Sequential process finished." << endl;
     return 0;
 }
