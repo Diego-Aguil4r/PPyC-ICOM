@@ -16,8 +16,8 @@ struct Color {
 
 // Task A: Generate Mandelbrot Set (Parallelized)
 void generateMandelbrot(vector<Color>& image) {
-    // Dynamic: Iterations assigned at runtime, good for uneven workloads
-    #pragma omp parallel for schedule(dynamic, 100)
+    // Guided: Decreasing chunk sizes to reduce overhead
+    #pragma omp parallel for schedule(guided)
     for (int y = 0; y < HEIGHT; ++y) {
         for (int x = 0; x < WIDTH; ++x) {
             double c_re = (x - WIDTH / 2.0) * 4.0 / WIDTH;
