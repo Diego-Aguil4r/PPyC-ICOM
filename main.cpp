@@ -16,7 +16,8 @@ struct Color {
 
 // Task A: Generate Mandelbrot Set (Parallelized)
 void generateMandelbrot(vector<Color>& image) {
-    #pragma omp parallel for
+    // Static: Default partition, best for uniform workloads
+    #pragma omp parallel for schedule(static)
     for (int y = 0; y < HEIGHT; ++y) {
         for (int x = 0; x < WIDTH; ++x) {
             double c_re = (x - WIDTH / 2.0) * 4.0 / WIDTH;
