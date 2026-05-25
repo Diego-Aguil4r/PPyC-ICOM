@@ -14,7 +14,9 @@ struct Color {
     unsigned char r, g, b;
 };
 
+// ==========================================
 // Task A: Generate Mandelbrot Set (Parallelized)
+// ==========================================
 void generateMandelbrot(vector<Color>& image) {
     // Guided: Decreasing chunk sizes to reduce overhead
     #pragma omp parallel for schedule(guided)
@@ -46,7 +48,9 @@ void generateMandelbrot(vector<Color>& image) {
     }
 }
 
-// Task B: Apply 5x5 Gaussian Blur (Parallelized)
+// ==========================================
+// Task B: Apply 5x5 Gaussian Blur (Step 5: SIMD Vectorization)
+// ==========================================
 void applyGaussianBlur(const vector<Color>& input, vector<Color>& output) {
     double kernel[5][5] = {
         { 1/256.0,  4/256.0,  6/256.0,  4/256.0, 1/256.0 },
@@ -56,8 +60,12 @@ void applyGaussianBlur(const vector<Color>& input, vector<Color>& output) {
         { 1/256.0,  4/256.0,  6/256.0,  4/256.0, 1/256.0 }
     };
 
-    #pragma omp parallel for
+    // External loop parallelization (SPMD)
+    #pragma omp parallel for schedule(dynamic, 100)
     for (int y = 2; y < HEIGHT - 2; ++y) {
+        
+        // STEP 5: SIMD directive to vectorize horizontal calculation
+        #pragma omp simd
         for (int x = 2; x < WIDTH - 2; ++x) {
             double r = 0, g = 0, b = 0;
 
@@ -80,35 +88,35 @@ void applyGaussianBlur(const vector<Color>& input, vector<Color>& output) {
 }
 
 // ==========================================
-// PUNTO 4: Histograma con exclusión mutua (Atomic)
+// STEP 4: Histogram with mutual exclusion (Atomic)
 // ==========================================
 void calculateHistogramAtomic(const vector<Color>& image, int histogram[256]) {
     for(int i = 0; i < 256; i++) histogram[i] = 0;
     
     #pragma omp parallel for
     for (int i = 0; i < image.size(); ++i) {
-        int val = image[i].r; // Usamos el canal rojo para el cálculo
+        int val = image[i].r; // Using the red channel for calculation
         #pragma omp atomic
         histogram[val]++;
     }
 }
 
 // ==========================================
-// PUNTO 4: Histograma con variables estrictamente locales
+// STEP 4: Histogram with strictly local variables
 // ==========================================
 void calculateHistogramEfficient(const vector<Color>& image, int histogram[256]) {
     for(int i = 0; i < 256; i++) histogram[i] = 0;
     
     #pragma omp parallel
     {
-        int local_hist[256] = {0}; // Copia local para cada hilo
+        int local_hist[256] = {0}; // Local copy for each thread
         
         #pragma omp for nowait
         for (int i = 0; i < image.size(); ++i) {
             local_hist[image[i].r]++;
         }
         
-        // Se combinan los resultados locales en el arreglo global
+        // Combine local results into the global array
         #pragma omp critical
         {
             for(int i = 0; i < 256; i++) {
@@ -127,22 +135,24 @@ void savePPM(const string& filename, const vector<Color>& image) {
     file.close();
 }
 
+// ==========================================
+// MAIN PROGRAM
+// ==========================================
 int main() {
     vector<Color> image(WIDTH * HEIGHT);
     vector<Color> blurred_image(WIDTH * HEIGHT);
-    int histogram[256]; // Arreglo para almacenar los resultados del histograma
+    int histogram[256]; // Array to store histogram results
 
     cout << "Generating Mandelbrot 8K in parallel..." << endl;
     double start = omp_get_wtime();
     generateMandelbrot(image);
     cout << "Mandelbrot Time: " << omp_get_wtime() - start << "s\n" << endl;
 
-    cout << "Applying Gaussian blur in parallel..." << endl;
+    cout << "Applying Gaussian blur (Parallel + SIMD)..." << endl;
     start = omp_get_wtime();
     applyGaussianBlur(image, blurred_image);
     cout << "Blur Time: " << omp_get_wtime() - start << "s\n" << endl;
 
-    // Ejecución y medición del Punto 4
     cout << "Calculating Histogram (Atomic)..." << endl;
     start = omp_get_wtime();
     calculateHistogramAtomic(blurred_image, histogram);
