@@ -79,6 +79,45 @@ void applyGaussianBlur(const vector<Color>& input, vector<Color>& output) {
     }
 }
 
+// ==========================================
+// PUNTO 4: Histograma con exclusión mutua (Atomic)
+// ==========================================
+void calculateHistogramAtomic(const vector<Color>& image, int histogram[256]) {
+    for(int i = 0; i < 256; i++) histogram[i] = 0;
+    
+    #pragma omp parallel for
+    for (int i = 0; i < image.size(); ++i) {
+        int val = image[i].r; // Usamos el canal rojo para el cálculo
+        #pragma omp atomic
+        histogram[val]++;
+    }
+}
+
+// ==========================================
+// PUNTO 4: Histograma con variables estrictamente locales
+// ==========================================
+void calculateHistogramEfficient(const vector<Color>& image, int histogram[256]) {
+    for(int i = 0; i < 256; i++) histogram[i] = 0;
+    
+    #pragma omp parallel
+    {
+        int local_hist[256] = {0}; // Copia local para cada hilo
+        
+        #pragma omp for nowait
+        for (int i = 0; i < image.size(); ++i) {
+            local_hist[image[i].r]++;
+        }
+        
+        // Se combinan los resultados locales en el arreglo global
+        #pragma omp critical
+        {
+            for(int i = 0; i < 256; i++) {
+                histogram[i] += local_hist[i];
+            }
+        }
+    }
+}
+
 void savePPM(const string& filename, const vector<Color>& image) {
     ofstream file(filename, ios::binary);
     file << "P6\n" << WIDTH << " " << HEIGHT << "\n255\n";
@@ -91,17 +130,32 @@ void savePPM(const string& filename, const vector<Color>& image) {
 int main() {
     vector<Color> image(WIDTH * HEIGHT);
     vector<Color> blurred_image(WIDTH * HEIGHT);
+    int histogram[256]; // Arreglo para almacenar los resultados del histograma
 
     cout << "Generating Mandelbrot 8K in parallel..." << endl;
     double start = omp_get_wtime();
     generateMandelbrot(image);
-    cout << "Mandelbrot Time: " << omp_get_wtime() - start << "s" << endl;
+    cout << "Mandelbrot Time: " << omp_get_wtime() - start << "s\n" << endl;
 
     cout << "Applying Gaussian blur in parallel..." << endl;
     start = omp_get_wtime();
     applyGaussianBlur(image, blurred_image);
-    cout << "Blur Time: " << omp_get_wtime() - start << "s" << endl;
+    cout << "Blur Time: " << omp_get_wtime() - start << "s\n" << endl;
 
+    // Ejecución y medición del Punto 4
+    cout << "Calculating Histogram (Atomic)..." << endl;
+    start = omp_get_wtime();
+    calculateHistogramAtomic(blurred_image, histogram);
+    cout << "Histogram Atomic Time: " << omp_get_wtime() - start << "s\n" << endl;
+
+    cout << "Calculating Histogram (Efficient/Local)..." << endl;
+    start = omp_get_wtime();
+    calculateHistogramEfficient(blurred_image, histogram);
+    cout << "Histogram Local Time: " << omp_get_wtime() - start << "s\n" << endl;
+
+    cout << "Saving image to disk..." << endl;
     savePPM("mandelbrot_blur.ppm", blurred_image);
+    cout << "Process completed successfully." << endl;
+    
     return 0;
 }
