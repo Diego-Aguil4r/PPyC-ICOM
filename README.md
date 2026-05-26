@@ -1,25 +1,27 @@
-# Proyecto Final: Programación Paralela y Concurrente (PPyC)
+# Parallel and Concurrent Programming Final Project (PPyC-ICOM)
 
-Este repositorio contiene el código y el historial de versiones del proyecto final para la materia de Programación Paralela y Concurrente (D02) del Centro Universitario de Ciencias Exactas e Ingenierías (CUCEI).
+This repository contains the source code, version history, and performance documentation for the final project of the Parallel and Concurrent Programming course (Section D02) at the Centro Universitario de Ciencias Exactas e Ingenierías (CUCEI).
 
-El proyecto demuestra la aceleración de algoritmos computacionalmente costosos mediante la paralelización con OpenMP en C++.
+The project demonstrates empirical performance acceleration of computationally expensive algorithms by applying parallel computing patterns with OpenMP in C++.
 
-## 🚀 Características del Proyecto
+## 🚀 Project Architecture
 
-El programa principal realiza tres tareas secuenciales sobre una matriz de resolución 8K (7680x4320):
-1. **Generación del Conjunto de Mandelbrot:** Cálculo de un fractal con alta irregularidad computacional.
-2. **Filtro Gaussiano (Blur):** Aplicación de una matriz de convolución 5x5 para desenfocar la imagen resultante.
-3. **Histograma de Colores:** Conteo de la frecuencia de iteraciones/valores en la imagen final.
+The application executes three consecutive processing tasks on an ultra-high resolution 8K matrix (7680 x 4320 pixels):
+1. **Mandelbrot Set Generation (Task A):** Computation of a complex fractal exhibiting massive computational load imbalance.
+2. **Gaussian Blur Filter (Task B):** Application of a 5x5 spatial convolution matrix to blur the generated fractal image.
+3. **Color Histogram Extraction:** Frequency distribution tracking of iteration values across the finalized dataset.
 
-## ⚙️ Optimizaciones Implementadas con OpenMP
+## ⚙️ Implemented OpenMP Optimizations
 
-El código evolucionó desde una versión puramente secuencial hasta una versión paralela optimizada, solucionando diferentes cuellos de botella:
-* **Balance de Carga Eficiente:** Se implementó `schedule(dynamic, 100)` en el fractal de Mandelbrot para mitigar la asimetría de la carga de trabajo, reduciendo el tiempo drásticamente frente al planificador estático por defecto.
-* **Estructura SPMD y Vectorización:** Se forzó la vectorización de los bucles internos de la convolución utilizando la directiva `#pragma omp simd`. El compilador empaquetó exitosamente las instrucciones en vectores de 16 bytes.
-* **Eliminación de False Sharing:** Se sustituyó la exclusión mutua (`#pragma omp atomic`) en el cálculo del histograma por el uso de arreglos estrictamente locales por hilo, evitando la contención de memoria y la invalidación constante de la memoria caché L1/L2.
+The implementation systematically evolved from a baseline sequential codebase to a fully optimized concurrent structure, addressing critical performance bottlenecks:
 
-## 💻 Especificaciones de Hardware de Prueba
-* **Procesador:** AMD Ryzen 3 3200G (4 núcleos físicos, 4 hilos lógicos)
-* **Caché:** L1 (384 KB), L2 (2.0 MB), L3 (4.0 MB)
-* **RAM:** 16 GB a 2933 MT/s
-* **Entorno:** Máquina Virtual (Ubuntu Linux)
+* **Dynamic Load Balancing:** Mitigated the severe spatial load asymmetry of the Mandelbrot set by shifting from default static scheduling to `schedule(dynamic, 100)`. This minimized thread starvation and reduced execution time significantly.
+* **SPMD Structure & Loop Vectorization:** Forced vectorization within the innermost convolution loops of the Gaussian filter using the `#pragma omp simd` directive. Compilation diagnostics confirm successful data packaging into 16-byte SIMD vector registers.
+* **Cache Contention & False Sharing Elimination:** Resolved severe L1/L2 cache line invalidations in the histogram calculation. The initial implementation relied on shared global arrays protected via mutual exclusion (`#pragma omp atomic`), which induced false sharing. This was replaced with an optimized localized reduction strategy using strictly local thread-private arrays.
+
+## 💻 Hardware Specifications (Testbed)
+* **CPU:** AMD Ryzen 3 3200G with Radeon Vega Graphics (4 Physical Cores, 4 Logical Threads)
+* **Base Frequency:** 3.60 GHz
+* **Cache Hierarchy:** L1: 384 KB, L2: 2.0 MB, L3: 4.0 MB
+* **Memory:** 16.0 GB RAM @ 2933 MT/s
+* **OS Environment:** Linux Ubuntu Virtual Machine (hosted via Hypervisor)
